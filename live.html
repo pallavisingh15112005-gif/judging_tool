@@ -1306,6 +1306,8 @@ tr.podium .p-name {
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script>
+if (!window.__judgingBooted) {
+  window.__judgingBooted = true;
 // judging tool
 // score entry -> totals -> ranks, all client side.
 // todo: maybe add an undo button later
@@ -2333,6 +2335,7 @@ function init() {
 
 init();
 
+}
 </script>
 </body>
 </html>

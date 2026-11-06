@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Judging Tool</title>
+  <meta name="description" content="Judges enter scores for each criterion; totals and ranks update automatically." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%234f46e5'/><text x='32' y='45' font-size='36' font-family='Segoe UI,Arial' font-weight='700' text-anchor='middle' fill='white'>J</text></svg>" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">J</div>
+        <div class="brand-text">
+          <h1 id="brandTitle">Judging Tool</h1>
+          <p class="tagline">scores in, ranks out</p>
+        </div>
+      </div>
+      <nav class="tabs" role="tablist" aria-label="Sections">
+        <button class="tab active" data-tab="setup" role="tab" aria-selected="true" type="button">Setup</button>
+        <button class="tab" data-tab="scoring" role="tab" aria-selected="false" type="button">Scoring</button>
+        <button class="tab" data-tab="results" role="tab" aria-selected="false" type="button">Results</button>
+      </nav>
+      <div class="topbar-actions">
+        <span id="saveState" class="save-state">Autosave on</span>
+        <button id="themeToggle" class="icon-btn" type="button" aria-label="Toggle theme">🌙</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- setup -->
+    <section id="panel-setup" class="tab-panel active" role="tabpanel" aria-label="Setup">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>Event details</h2>
+            <p class="sub">Event name and rounding.</p>
+          </div>
+        </div>
+        <div class="field-row">
+          <label class="field grow">
+            <span>Event name</span>
+            <input id="eventName" type="text" maxlength="80" placeholder="e.g. Annual Design Challenge" />
+          </label>
+          <label class="field">
+            <span>Score decimals</span>
+            <select id="decimals">
+              <option value="0">0 — whole numbers</option>
+              <option value="1">1 — e.g. 8.5</option>
+              <option value="2">2 — e.g. 8.25</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>Criteria</h2>
+            <p class="sub">Set the range (min/max) and weight for each criterion.</p>
+          </div>
+          <button id="addCriterion" class="btn" type="button">+ Add criterion</button>
+        </div>
+        <div id="criteriaList" class="list"></div>
+      </div>
+
+      <div class="cols-2">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Participants</h2>
+              <p class="sub">Who or what is being judged.</p>
+            </div>
+            <button id="addParticipant" class="btn" type="button">+ Add participant</button>
+          </div>
+          <div id="participantList" class="list"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Judges</h2>
+              <p class="sub">People giving the scores.</p>
+            </div>
+            <button id="addJudge" class="btn" type="button">+ Add judge</button>
+          </div>
+          <div id="judgeList" class="list"></div>
+        </div>
+      </div>
+
+      <div class="panel danger-panel">
+        <div class="panel-head">
+          <div>
+            <h2>Danger zone</h2>
+            <p class="sub">Clear scores or start fresh. Can't undo.</p>
+          </div>
+          <div class="btn-row">
+            <button id="clearAllScores" class="btn ghost" type="button">Clear all scores</button>
+            <button id="resetProject" class="btn danger" type="button">Reset project</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- scoring -->
+    <section id="panel-scoring" class="tab-panel" role="tabpanel" aria-label="Scoring">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>Enter scores</h2>
+            <p class="sub">Pick a judge and start entering scores. Totals/ranks update as you type.</p>
+          </div>
+          <button id="clearJudgeScores" class="btn ghost" type="button">Clear this judge</button>
+        </div>
+        <div id="judgeBar" class="judge-bar"></div>
+        <p id="judgeProgress" class="judge-progress"></p>
+      </div>
+
+      <div class="panel">
+        <div class="table-wrap">
+          <table id="scoreTable" class="grid-table"></table>
+        </div>
+      </div>
+
+      <p class="hint">Tip: Tab se next score field me jao. Ranks har score ke saath update hote hain.</p>
+    </section>
+
+    <!-- results -->
+    <section id="panel-results" class="tab-panel" role="tabpanel" aria-label="Results">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>Leaderboard</h2>
+            <p class="sub">Average of all judges, weighted by each criterion.</p>
+          </div>
+          <div class="btn-row">
+            <button id="exportCsv" class="btn" type="button">Export CSV</button>
+            <button id="printBtn" class="btn ghost" type="button">Print / PDF</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="leaderboard" class="grid-table"></table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>Score breakdown</h2>
+            <p class="sub">Average percentage per criterion.</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="breakdown" class="grid-table"></table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

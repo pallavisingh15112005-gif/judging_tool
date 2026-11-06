@@ -184,6 +184,24 @@ function toPct(value, criterion) {
   return Math.min(100, Math.max(0, pct));
 }
 
+// colour hint for the score boxes: low / mid / high
+function scoreTone(value, criterion) {
+  const pct = toPct(value, criterion);
+  if (pct >= 75) return 'tone-high';
+  if (pct >= 50) return 'tone-mid';
+  return 'tone-low';
+}
+
+function paintScore(input) {
+  const c = state.criteria.find((x) => x.id === input.dataset.criterion);
+  const raw = input.value.trim();
+  input.classList.remove('has-value', 'tone-low', 'tone-mid', 'tone-high');
+  if (!c || raw === '') return;
+  const v = num(raw);
+  if (!Number.isFinite(v)) return;
+  input.classList.add('has-value', scoreTone(v, c));
+}
+
 // total for one judge on one participant, 0-100
 // missing criteria are skipped (completeness is shown in the ui)
 function judgeTotal(judgeId, participantId) {
@@ -305,7 +323,9 @@ function clearScore(judgeId, participantId, criterionId) {
 function updateBrand() {
   const name = (state.eventName || '').trim() || 'Judging Tool';
   $('#brandTitle').textContent = name;
-  document.title = `${name} — Judging Tool`;
+  document.title = name;
+  const footer = $('#footerEvent');
+  if (footer) footer.textContent = name;
 }
 
 function toast(message) {
@@ -332,6 +352,55 @@ function overallCell(r, decimals) {
   if (r.overall === null) return '<span class="muted">—</span>';
   return `<span class="score-big">${fmt(r.overall, decimals)}</span>` +
     `<span class="score-sub">${r.judgesCount}/${state.judges.length} judges</span>`;
+}
+
+function setProgress(prog) {
+  const pct = prog.total ? Math.round((prog.filled / prog.total) * 100) : 0;
+  const bar = $('#judgeProgressBar');
+  const label = $('#judgeProgressPct');
+  if (bar) bar.style.width = `${pct}%`;
+  if (label) label.textContent = prog.total ? `${pct}%` : '—';
+}
+
+function renderStats(results) {
+  const el = $('#resultsStats');
+  if (!el) return;
+
+  if (!state.participants.length || !state.judges.length || !state.criteria.length) {
+    el.innerHTML = '';
+    return;
+  }
+
+  const totalCells = state.participants.length * state.criteria.length * state.judges.length;
+  let filled = 0;
+  for (const j of state.judges) filled += judgeProgress(j.id).filled;
+  const pct = totalCells ? Math.round((filled / totalCells) * 100) : 0;
+
+  const scored = results.rows.filter((r) => r.overall !== null);
+  const avg = scored.length ? scored.reduce((sum, r) => sum + r.overall, 0) / scored.length : null;
+  const leader = results.ranked[0] || null;
+
+  el.innerHTML = `
+    <div class="stat">
+      <span class="stat-label">Participants</span>
+      <span class="stat-value">${state.participants.length}</span>
+      <span class="stat-sub">${state.criteria.length} criteria · ${state.judges.length} judges</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Scores entered</span>
+      <span class="stat-value">${filled}<span class="muted"> / ${totalCells}</span></span>
+      <span class="stat-sub">${pct}% complete</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Average score</span>
+      <span class="stat-value">${avg === null ? '—' : fmt(avg, state.decimals)}</span>
+      <span class="stat-sub">across all participants</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Leading</span>
+      <span class="stat-value small">${leader ? esc(leader.participant.name || 'Unnamed') : '—'}</span>
+      <span class="stat-sub">${leader ? `${fmt(leader.overall, state.decimals)} / 100` : 'no scores yet'}</span>
+    </div>`;
 }
 
 // setup
@@ -369,6 +438,10 @@ function renderSetup() {
   $('#eventName').value = state.eventName;
   $('#decimals').value = String(state.decimals);
 
+  $('#criteriaCount').textContent = state.criteria.length;
+  $('#participantsCount').textContent = state.participants.length;
+  $('#judgesCount').textContent = state.judges.length;
+
   $('#criteriaList').innerHTML = state.criteria.length
     ? state.criteria.map(criterionRow).join('')
     : '<p class="empty">No criteria yet. Add your first criterion.</p>';
@@ -401,6 +474,7 @@ function renderScoring() {
   if (missing) {
     bar.innerHTML = '';
     progress.textContent = '';
+    setProgress({ filled: 0, total: 0 });
     table.innerHTML = `<tbody><tr><td class="table-empty">${esc(missing)}</td></tr></tbody>`;
     clearBtn.disabled = true;
     return;
@@ -425,6 +499,7 @@ function renderScoring() {
   const prog = judgeProgress(state.activeJudgeId);
   progress.innerHTML = `<strong>${esc(active?.name || '')}</strong> — ${prog.filled} of ${prog.total} scores entered` +
     (prog.filled === prog.total ? ' · complete ✓' : '');
+  setProgress(prog);
 
   const results = getResults();
   const byId = new Map(results.rows.map((r) => [r.participant.id, r]));
@@ -444,7 +519,8 @@ function renderScoring() {
 
     const cells = state.criteria.map((c) => {
       const v = state.scores[state.activeJudgeId]?.[p.id]?.[c.id];
-      return `<td><input class="score-input${isNum(v) ? ' has-value' : ''}" type="number" inputmode="decimal"
+      const tone = isNum(v) ? scoreTone(v, c) : '';
+      return `<td><input class="score-input${isNum(v) ? ` has-value ${tone}` : ''}" type="number" inputmode="decimal"
         step="any" min="${c.min}" max="${c.max}"
         data-judge="${state.activeJudgeId}" data-participant="${p.id}" data-criterion="${c.id}"
         value="${isNum(v) ? esc(String(v)) : ''}"
@@ -501,6 +577,7 @@ function updateLiveScoring() {
     progressEl.innerHTML = `<strong>${esc(active?.name || '')}</strong> — ${prog.filled} of ${prog.total} scores entered` +
       (prog.filled === prog.total ? ' · complete ✓' : '');
   }
+  setProgress(prog);
 }
 
 // results
@@ -513,10 +590,20 @@ function renderResults() {
   if (!state.participants.length || !state.judges.length || !state.criteria.length) {
     lb.innerHTML = `<tbody><tr><td class="table-empty">Set up criteria, participants and judges to see results.</td></tr></tbody>`;
     bd.innerHTML = '';
+    renderStats({ rows: [], ranked: [] });
     return;
   }
 
   const results = getResults();
+  renderStats(results);
+
+  const printTitle = $('#printTitle');
+  const printMeta = $('#printMeta');
+  if (printTitle) printTitle.textContent = state.eventName || 'Judging results';
+  if (printMeta) {
+    printMeta.textContent = `${state.participants.length} participants · ${state.judges.length} judges · ` +
+      `${state.criteria.length} criteria · ${new Date().toLocaleDateString()}`;
+  }
 
   lb.innerHTML = `<thead><tr>
     <th>Rank</th>
@@ -808,11 +895,10 @@ function bindScoringEvents() {
 
     if (Number.isFinite(v)) {
       setScore(judge, participant, criterion, v);
-      input.classList.add('has-value');
     } else {
       clearScore(judge, participant, criterion);
-      input.classList.remove('has-value');
     }
+    paintScore(input);
 
     updateLiveScoring();
     scheduleSync();
@@ -831,14 +917,13 @@ function bindScoringEvents() {
     if (!Number.isFinite(v) || input.value.trim() === '') {
       clearScore(judge, participant, criterion);
       input.value = '';
-      input.classList.remove('has-value');
     } else {
       const clamped = Math.min(c.max, Math.max(c.min, v));
       const final = round(clamped, state.decimals);
       input.value = String(final);
-      input.classList.add('has-value');
       setScore(judge, participant, criterion, final);
     }
+    paintScore(input);
 
     updateLiveScoring();
     save();

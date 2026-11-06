@@ -1306,7 +1306,8 @@ tr.podium .p-name {
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script>
-if (!window.__judgingBooted) {
+(function () {
+  if (window.__judgingBooted) return;
   window.__judgingBooted = true;
 // judging tool
 // score entry -> totals -> ranks, all client side.
@@ -2335,7 +2336,7 @@ function init() {
 
 init();
 
-}
+})();
 </script>
 </body>
 </html>
